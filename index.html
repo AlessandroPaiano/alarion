@@ -1,0 +1,683 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<title>Cronache di Alarion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Raleway:wght@600;700;800&family=Open+Sans:ital,wght@0,400;0,600;0,700;1,400&display=swap">
+<style>
+/* Layout: una colonna da telefono. Colori ALA (bianco, grigi, nero), componenti morbidi stile app: controlli segmentati, liste arrotondate, timer con pulsante tondo */
+:root{
+  --bg:#f4f4f4; --panel:#ffffff; --fill:#ebebeb; --fill2:#dedede; --ink:#333333; --strong:#222222; --muted:#777777; --line:#e4e4e4;
+  --accent:#363636; --accent-ink:#ffffff; --gold:#9c7426; --flame:#e3a43a;
+  --seg1:#ffffff; --seg2:#ebebeb; --seg3:#d6d6d6;
+  --good:#3b7a49; --bad:#a8402f; --infect:#6a5a80; --shadow:0 1px 2px rgba(0,0,0,.05),0 2px 8px rgba(0,0,0,.04);
+  --display:"Raleway",Helvetica,Arial,sans-serif;
+  --body:"Open Sans",Helvetica,Arial,sans-serif;
+  --r:12px; --rs:8px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#141618; --panel:#1e2225; --fill:#2a2f33; --fill2:#353b40; --ink:#e2e2e2; --strong:#f5f5f5; --muted:#9a9fa3; --line:#2e3438;
+  --accent:#e9e9e9; --accent-ink:#141618; --gold:#d6b46a; --flame:#f0b44c;
+  --seg1:#262b2e; --seg2:#30363a; --seg3:#3c4347;
+  --good:#7cc08a; --bad:#e48877; --infect:#b3a2c9; --shadow:0 1px 2px rgba(0,0,0,.3); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141618; --panel:#1e2225; --fill:#2a2f33; --fill2:#353b40; --ink:#e2e2e2; --strong:#f5f5f5; --muted:#9a9fa3; --line:#2e3438;
+  --accent:#e9e9e9; --accent-ink:#141618; --gold:#d6b46a; --flame:#f0b44c;
+  --seg1:#262b2e; --seg2:#30363a; --seg3:#3c4347;
+  --good:#7cc08a; --bad:#e48877; --infect:#b3a2c9; --shadow:0 1px 2px rgba(0,0,0,.3); color-scheme:dark}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--body)}
+.wrap{max-width:480px;margin:0 auto;padding-block:18px 32px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:14px}
+h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance;color:var(--strong)}
+h1{font-size:1.7rem;font-weight:800;line-height:1.15;letter-spacing:-.01em}
+h2{font-size:1.25rem;font-weight:800;line-height:1.2}
+h3{font-size:1.02rem;font-weight:700;line-height:1.3}
+p{margin:0}
+.lbl{font-size:.72rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.muted{color:var(--muted)} .small{font-size:.86rem}
+.good{color:var(--good)} .bad{color:var(--bad)}
+/* pulsanti */
+button{font:inherit;font-weight:600;font-size:.92rem;cursor:pointer;border:none;border-radius:var(--rs);background:var(--fill);color:var(--strong);padding:10px 16px;min-height:40px;transition:background .12s,transform .08s}
+button:hover:not(:disabled){background:var(--fill2)}
+button:active:not(:disabled){transform:scale(.98)}
+button.primary{background:var(--accent);color:var(--accent-ink)}
+button.primary:hover:not(:disabled){background:color-mix(in srgb,var(--accent) 86%,var(--bg))}
+button:disabled{opacity:.4;cursor:not-allowed}
+button:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+input{font:inherit;width:100%;padding:11px 14px;border-radius:var(--rs);border:1px solid transparent;background:var(--fill);color:var(--strong)}
+input:focus{background:var(--panel);border-color:var(--line)}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row>button{flex:1;min-width:120px}
+.steps{display:flex;gap:4px} .steps i{flex:1;height:4px;border-radius:99px;background:var(--fill2)} .steps i.on{background:var(--accent)}
+/* superfici */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:16px;display:flex;flex-direction:column;gap:8px}
+.card.hot{border-color:color-mix(in srgb,var(--accent) 35%,var(--line))}
+.big{font-family:var(--display);font-weight:800;font-size:1.35rem;line-height:1.2;color:var(--strong)}
+.motto{font-style:italic;color:var(--muted)}
+.wheelbox{position:relative;width:min(100%,340px);aspect-ratio:1;margin:0 auto;max-width:100%}
+.wheelbox canvas{width:100%;height:100%;display:block}
+.pin{position:absolute;left:50%;top:-4px;transform:translateX(-50%);border-left:13px solid transparent;border-right:13px solid transparent;border-top:24px solid var(--strong)}
+/* scelte */
+.opts{display:flex;flex-direction:column;gap:8px}
+.opt{position:relative;text-align:left;display:flex;flex-direction:column;gap:2px;padding:14px 48px 14px 16px;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);font-weight:400;font-size:.92rem;min-height:0}
+.opt:hover:not(:disabled){background:var(--panel);border-color:var(--fill2)}
+.opt b{font-family:var(--display);font-size:1.02rem;font-weight:800;color:var(--strong)}
+.opt::after{content:"";position:absolute;right:16px;top:16px;width:20px;height:20px;border-radius:50%;border:2px solid var(--fill2);box-sizing:border-box}
+.opt[aria-checked="true"]{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.opt[aria-checked="true"]::after{border:6px solid var(--accent)}
+/* sezioni abilità */
+details.sec{border:1px solid var(--line);border-radius:var(--r);background:var(--panel);box-shadow:var(--shadow);overflow:hidden}
+details.sec>summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 16px}
+details.sec>summary:hover{background:color-mix(in srgb,var(--fill) 45%,transparent)}
+details.sec>summary::-webkit-details-marker{display:none}
+details.sec>summary .sn{font-family:var(--display);font-size:1rem;font-weight:800;color:var(--strong)}
+details.sec>summary::after{content:"";width:8px;height:8px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(-45deg);transition:transform .15s;flex:none;margin-left:4px}
+details.sec[open]>summary::after{transform:rotate(45deg)}
+details.sec>summary>span:last-of-type{margin-left:auto}
+details.sec>summary:focus-visible{outline-offset:-2px}
+.abl{display:flex;flex-direction:column;border-top:1px solid var(--line)}
+.ab{display:flex;gap:12px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line)}
+.ab:last-child{border-bottom:none}
+.ab:hover{background:color-mix(in srgb,var(--fill) 35%,transparent)}
+.abt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.abt b{font-weight:700;color:var(--strong)}
+.ab.own .abt b::before{content:"✓";display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font-size:.7rem;margin-right:8px;vertical-align:1px}
+.ab.lock .abt b{color:var(--muted)}
+.ab>button{flex:none;min-width:76px;min-height:34px;padding:6px 12px;font-size:.84rem}
+.ab>button[data-rm]{background:transparent;color:var(--muted);box-shadow:inset 0 0 0 1px var(--line)}
+.golink{font:inherit;font-weight:600;font-size:inherit;background:none;border:none;padding:0;min-height:0;color:var(--strong);text-decoration:underline;text-decoration-color:var(--fill2);text-underline-offset:3px;text-decoration-thickness:2px;cursor:pointer;border-radius:3px}
+.golink:hover:not(:disabled){background:none;text-decoration-color:currentColor}
+.golink.ok{color:var(--good)}
+.ab.flash{animation:flash 1.6s ease-out}
+@keyframes flash{0%,30%{background:color-mix(in srgb,var(--gold) 22%,transparent)}100%{background:transparent}}
+@media (prefers-reduced-motion:reduce){.ab.flash{animation:none;outline:2px solid var(--gold)}}
+.stick{position:sticky;bottom:calc(8px + env(safe-area-inset-bottom,0px));background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:0 4px 18px rgba(0,0,0,.1);padding:8px}
+.psleft{font-variant-numeric:tabular-nums;padding:0 8px;display:flex;align-items:baseline;gap:4px;color:var(--muted);font-size:.84rem}
+.psleft b{font-size:1.3rem;color:var(--strong)}
+.sheet{display:grid;grid-template-columns:auto 1fr;gap:8px 14px;align-items:baseline;margin:0}
+.sheet dt{font-size:.72rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.sheet dd{margin:0;min-width:0}
+/* intestazione di gioco */
+.top{display:flex;gap:12px;align-items:center}
+.lantern{width:40px;height:56px;flex:none}
+.lantern .fl{fill:var(--flame);transform-origin:20px 34px;animation:flick 2.4s ease-in-out infinite}
+.lantern .glow{fill:var(--flame);opacity:.22}
+.lantern.dim .fl{opacity:.35;animation-duration:4s} .lantern.dim .glow{opacity:.06}
+.lantern .frame{fill:none;stroke:var(--strong);stroke-width:2}
+@keyframes flick{0%,100%{transform:scale(1,1)}30%{transform:scale(.92,1.06)}60%{transform:scale(1.05,.95)}}
+.who{flex:1;min-width:0}
+.purse{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;font-variant-numeric:tabular-nums}
+.purse div{display:flex;flex-direction:column;gap:2px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;box-shadow:var(--shadow);min-width:0}
+.purse b{font-size:1.05rem;color:var(--strong);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.purse .moon b{color:var(--gold)} .purse .ala b{color:var(--infect)}
+.bar{height:6px;border-radius:99px;background:var(--fill);overflow:hidden}
+.bar>i{display:block;height:100%;border-radius:99px;background:var(--accent);width:0;transition:width .25s}
+.bar.infect>i{background:var(--infect)}
+/* controllo segmentato */
+.tabs{display:flex;gap:2px;background:var(--fill);border-radius:10px;padding:3px}
+.tabs button{flex:1;padding:8px 4px;min-height:36px;background:transparent;color:var(--muted);border-radius:8px;font-size:.88rem}
+.tabs button:hover:not(:disabled){background:transparent;color:var(--strong)}
+.tabs button[aria-selected="true"]{background:var(--panel);color:var(--strong);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+/* liste */
+.board{display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
+.board>:last-child{border-bottom:none}
+.mis{display:grid;grid-template-columns:1fr auto;gap:6px 12px;padding:12px 12px 12px 16px;border-bottom:1px solid var(--line);align-items:center}
+.mis:hover{background:color-mix(in srgb,var(--fill) 35%,transparent)}
+.mis .t{font-weight:600;color:var(--strong);min-width:0}
+.mis .meta{display:flex;gap:6px;flex-wrap:wrap;grid-column:1}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:.74rem;font-weight:600;border-radius:6px;padding:2px 8px;color:var(--muted);background:var(--fill);white-space:nowrap}
+.chip.z1,.chip.z2,.chip.z3{background:color-mix(in srgb,currentColor 12%,transparent)}
+.chip.z1::before,.chip.z2::before,.chip.z3::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.chip.z1{color:var(--good)} .chip.z2{color:var(--gold)} .chip.z3{color:var(--infect)}
+.chip.p{font-variant-numeric:tabular-nums}
+.play{grid-row:1/3;grid-column:2;width:44px;height:44px;min-height:44px;padding:0;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center}
+.play:hover:not(:disabled){background:color-mix(in srgb,var(--accent) 86%,var(--bg))}
+.play svg{width:16px;height:16px;fill:currentColor}
+.play .pl{margin-left:3px}
+/* timer della missione in corso */
+.timer{display:flex;align-items:center;gap:12px}
+.timer .ti{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.clock{font-variant-numeric:tabular-nums;font-size:1.5rem;font-weight:700;color:var(--strong);letter-spacing:-.01em}
+.timer .play{background:var(--bad);color:#fff}
+.timer .play:hover:not(:disabled){background:color-mix(in srgb,var(--bad) 85%,#000)}
+/* caratteristiche e avamposto */
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.stat{border:1px solid var(--line);border-radius:var(--r);background:var(--panel);box-shadow:var(--shadow);padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.stat b{font-size:1.35rem;font-variant-numeric:tabular-nums;color:var(--strong)}
+.bld{display:grid;grid-template-columns:1fr auto;gap:2px 12px;padding:12px 12px 12px 16px;border-bottom:1px solid var(--line);align-items:center}
+.bld b{color:var(--strong)}
+.bld .d{font-size:.86rem;color:var(--muted);grid-column:1;min-width:0}
+.bld button{grid-row:1/3;grid-column:2;font-variant-numeric:tabular-nums;min-width:110px;font-size:.84rem}
+.prods{display:flex;flex-direction:column;gap:12px;margin-top:4px}
+.prow{display:flex;flex-direction:column;gap:5px}
+.ph{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.ph b{color:var(--strong);min-width:0}
+.pv{font-weight:700;font-variant-numeric:tabular-nums;color:var(--strong);white-space:nowrap}
+.lb{display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.lb.me,.lg.me{background:color-mix(in srgb,var(--gold) 10%,transparent)}
+.lb.gap{justify-content:center;padding:4px}
+.lbt{flex:1;min-width:0;display:flex;flex-direction:column}
+.lbt b{color:var(--strong);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pos{width:26px;height:26px;flex:none;border-radius:50%;background:var(--fill);display:grid;place-items:center;font-size:.8rem;font-weight:700;color:var(--strong);font-variant-numeric:tabular-nums}
+.sc{font-weight:700;font-variant-numeric:tabular-nums;color:var(--infect)}
+.lg{display:flex;flex-direction:column;gap:6px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.lgh{display:flex;align-items:center;gap:10px}
+.lgh b{flex:1;color:var(--strong)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--strong);color:var(--bg);padding:12px 16px;border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.2);max-width:calc(100% - 32px);font-size:.9rem;z-index:5}
+@media (prefers-reduced-motion:reduce){.lantern .fl{animation:none}.bar>i{transition:none}button{transition:none}}
+</style>
+</head>
+<body>
+
+
+<div class="wrap" id="app"></div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(()=>{
+const tg = window.Telegram && window.Telegram.WebApp;
+if(tg){ try{ tg.ready(); tg.expand(); }catch(e){} }
+const haptic=t=>{ try{ tg&&tg.HapticFeedback&&tg.HapticFeedback.impactOccurred(t||'light') }catch(e){} };
+
+/* ================= DATI DI ALARION ================= */
+const STATS={vig:"Vigore",ing:"Ingegno",fort:"Fortuna",tem:"Tempra"};
+const WORLD={
+ regno:{title:"Regno di origine",items:[
+  {id:"coronor",n:"Coronor",m:"Chi corre sul gelo, scivola sulla vergogna",d:"+2 Tempra. Missioni da 8 ore in su: +20% bottino.",st:{tem:2},long:1.2},
+  {id:"levalia",n:"Levalia",m:"La Spada è lo strumento, l'Onore è la via",d:"+2 Vigore. +5% di successo nelle cacce.",st:{vig:2},b:{caccia:5}},
+  {id:"malatea",n:"Malatea",m:"Che senso ha vivere, se non sai goderti un po' la vita?",d:"+1 Fortuna, +1 Ingegno. Trovi il 30% di gemme in più.",st:{fort:1,ing:1},gemme:1.3},
+  {id:"portumbria",n:"Portumbria",m:"Chi non s'avventura non ha ventura",d:"+1 Fortuna, +1 Tempra. +25% Lune dalle missioni.",st:{fort:1,tem:1},lune:1.25},
+  {id:"talmeridia",n:"Tal-Meridia",m:"Tal-Meridia non è un luogo, ma un popolo",d:"+1 Tempra, +1 Fortuna. Missioni più brevi del 15%.",st:{tem:1,fort:1},dur:.85},
+  {id:"valmora",n:"Valmora",m:"Non per gloria, ma per ricordo",d:"+1 Ingegno, +1 Tempra. +25% esperienza.",st:{ing:1,tem:1},xp:1.25}
+ ]},
+ form:{title:"Formazione",items:[
+  {id:"valutatore",n:"Valutatore",free:"valutare"},
+  {id:"viandante",n:"Viandante",free:"tzr"},
+  {id:"mistico",n:"Mistico",free:"percepire"},
+  {id:"vettore",n:"Vettore",free:"vettore"},
+  {id:"iniziato",n:"Iniziato",free:"cifrario"},
+  {id:"rigattiere",n:"Rigattiere",free:"collezionista"},
+  {id:"esploratore",n:"Esploratore",free:"cartografo"},
+  {id:"canaglia",n:"Canaglia",free:"manolesta"},
+  {id:"infermiere",n:"Infermiere",free:"ps"},
+  {id:"storico",n:"Storico",free:"lingue1"},
+  {id:"cantastorie",n:"Cantastorie",free:"miti1"},
+  {id:"garzone",n:"Garzone",free:"art1"}
+ ]},
+ loggia:{title:"Loggia",items:[
+  {id:"ankaa",n:"Fiamme di Ankaa",m:"Ogni brace attende il soffio giusto",d:"+1 Ingegno. Non esistono scoperte negative: le missioni fallite danno esperienza piena.",st:{ing:1},failxp:true},
+  {id:"antares",n:"Cuspide di Antares",m:"Chi mi limita mi eleva",d:"+1 Vigore. +25% bottino nelle Terre Mutate e nelle Profondità.",st:{vig:1},deep:1.25},
+  {id:"ensis",n:"Lama di Ensis",m:"Segui il segno, non l'istinto",d:"+2 Fortuna. 10% di occasioni: bottino doppio.",st:{fort:2},double:.1},
+  {id:"hamal",n:"Corno di Hamal",m:"Avanziamo dove altri si arrendono",d:"+2 Tempra. Le ferite durano la metà.",st:{tem:2},heal:.5}
+ ]}
+};
+const ORDER=["regno","form","loggia"];
+
+/* ---- Abilità del regolamento (3 PS l'una). d = cosa fa nel GRV, e = effetto nella mini app ---- */
+const SECS=[["gen","Generiche"],["alc","Alchemiche"],["est","Estrazione"],["art","Artigianato"],["com","Combattimento"],["gua","Guarigione"],["mag","Magia"],["rit","Ritualista"],["ren","Rendita"]];
+const MAESTRIE=["m2mani","mcorte","m1mano","mfuoco","mlancio","mtiro","mscudo"],ARMATURE=["arml","armm","armp"];
+const ABIL=[
+ {id:"cartografo",s:"gen",n:"Cartografo",d:"Prima di ogni evento ricevi una mappa con zone di interesse.",e:"Una missione in più in bacheca.",board:1},
+ {id:"cerimoniere",s:"gen",n:"Cerimoniere",d:"Officia e legittima cerimonie, anche con valore legale.",e:"+50% compenso del Patto per ogni Alathium Puro consegnato.",puroPay:1.5},
+ {id:"cifrario",s:"gen",n:"Cifrario Ermetico",d:"Interpreti i 12 simboli alchemico-esoterici nascosti nel mondo.",e:"+5% di successo nelle rovine.",b:{esplor:5}},
+ {id:"collezionista",s:"gen",n:"Collezionista",d:"Riconosci i pezzi delle collezioni e il loro valore.",e:"Trovi il 20% di gemme in più.",gemme:1.2},
+ {id:"costituzione",s:"gen",n:"Costituzione",d:"+1 PV.",e:"+1 Tempra.",st:{tem:1}},
+ {id:"costmig",s:"gen",n:"Costituzione Migliorata",pre:["costituzione"],d:"+1 PV.",e:"+1 Tempra.",st:{tem:1}},
+ {id:"disarmare",s:"gen",n:"Disarmare trappole",d:"Disarmi e riarmi le trappole.",e:"+5% di successo nelle rovine.",b:{esplor:5}},
+ {id:"tenacia",s:"gen",n:"Tenacia",pre:["costmig"],d:"Resti cosciente durante il Sanguinamento, che dura il doppio.",e:"Le ferite durano il 15% in meno.",heal:.85},
+ {id:"voce",s:"gen",n:"Voce Tenace",pre:["tenacia"],d:"Parli normalmente mentre sei Sanguinante o Morente.",e:"Le ferite durano il 10% in meno.",heal:.9},
+ {id:"passo",s:"gen",n:"Passo Tenace",pre:["voce"],d:"Ti trascini camminando mentre sei Sanguinante o Morente.",e:"Le ferite durano il 10% in meno.",heal:.9},
+ {id:"lingue1",s:"gen",n:"Lingue Perdute I",d:"Ricevi il frammento di una lingua antica.",e:"+4% di successo nelle rovine.",b:{esplor:4}},
+ {id:"lingue2",s:"gen",n:"Lingue Perdute II",pre:["lingue1"],d:"Un secondo frammento di lingua perduta.",e:"+4% di successo nelle rovine.",b:{esplor:4}},
+ {id:"lingue3",s:"gen",n:"Lingue Perdute III",pre:["lingue2"],d:"Un terzo frammento di lingua perduta.",e:"+4% di successo nelle rovine.",b:{esplor:4}},
+ {id:"segrete1",s:"gen",n:"Lingue Segrete I",d:"Leggi una lingua usata per i messaggi nascosti.",e:"+4% di successo nei recuperi.",b:{recupero:4}},
+ {id:"segrete2",s:"gen",n:"Lingue Segrete II",pre:["segrete1"],d:"Una seconda lingua segreta.",e:"+4% di successo nei recuperi.",b:{recupero:4}},
+ {id:"segrete3",s:"gen",n:"Lingue Segrete III",pre:["segrete2"],d:"Una terza lingua segreta.",e:"+4% di successo nei recuperi.",b:{recupero:4}},
+ {id:"miti1",s:"gen",n:"Miti e Leggende I",d:"Ricevi frammenti di Miti e Leggende una volta l'anno.",e:"+8% esperienza.",xp:1.08},
+ {id:"miti2",s:"gen",n:"Miti e Leggende II",pre:["miti1"],d:"Frammenti due volte l'anno.",e:"+8% esperienza.",xp:1.08},
+ {id:"miti3",s:"gen",n:"Miti e Leggende III",pre:["miti2"],d:"Frammenti tre volte l'anno.",e:"+8% esperienza.",xp:1.08},
+ {id:"percepire",s:"gen",n:"Percepire Magia",d:"Capisci se un oggetto è magico e se la magia ti ha influenzato.",e:"+1 Ingegno.",st:{ing:1}},
+ {id:"manolesta",s:"gen",n:"Mano Lesta",d:"Perquisisci in 1 minuto e individui trappole nei contenitori.",e:"+1 Fortuna.",st:{fort:1}},
+ {id:"raffinare",s:"gen",n:"Raffinare Alathium",any:["alch1","art1"],d:"Raffini l'Alathium Grezzo in Alathium Puro e Lacrime.",e:"Raffini anche senza laboratorio e ottieni 1 Lacrima in più.",refineNoLab:1,lacrime:1},
+ {id:"scassinare",s:"gen",n:"Scassinare Serrature",d:"Ricevi il Foglio Serrature con i codici dei lucchetti.",e:"+5% di successo nei recuperi.",b:{recupero:5}},
+ {id:"valutare",s:"gen",n:"Valutare",d:"Ricevi il Foglio di Valutare per conoscere il valore degli oggetti.",e:"+10% Lune dal bottino.",lune:1.1},
+ {id:"vettore",s:"gen",n:"Vettore rituale",d:"Stabilizzi i rituali e sintonizzi due oggetti magici.",e:"+1 Lacrima a ogni raffinazione.",lacrime:1},
+ {id:"alch1",s:"alc",n:"Alchimia I",d:"Analizzi i composti e accedi a una delle Tre Vie Alchemiche.",e:"Le cure immediate costano la metà.",healCost:.5},
+ {id:"immuno",s:"alc",n:"Immunologo",pre:["alch1"],d:"Crei preparati che immunizzano dal contagio di alcune malattie.",e:"+5% di successo nelle Terre Mutate e nelle Profondità.",bdeep:5},
+ {id:"tzr",s:"est",n:"Trovare Zone di Raccolta",d:"Individui le Zone Officinali e le Zone Minerarie.",e:"+15% Alathium Grezzo.",grezzo:1.15},
+ {id:"erb1",s:"est",n:"Erboristeria I",pre:["tzr"],d:"Raccogli Reagenti Vegetali comuni.",e:"+4% di successo nella raccolta di Alathium.",b:{raccolta:4}},
+ {id:"erb2",s:"est",n:"Erboristeria II",pre:["erb1"],d:"Raccogli Reagenti Vegetali rari.",e:"+4% di successo nella raccolta di Alathium.",b:{raccolta:4}},
+ {id:"erb3",s:"est",n:"Erboristeria III",pre:["erb2"],d:"Raccogli Reagenti Vegetali unici.",e:"+4% di successo nella raccolta di Alathium.",b:{raccolta:4}},
+ {id:"min1",s:"est",n:"Mineralogia I",pre:["tzr"],d:"Raccogli Reagenti Minerali comuni.",e:"+10% Alathium Grezzo.",grezzo:1.1},
+ {id:"min2",s:"est",n:"Mineralogia II",pre:["min1"],d:"Raccogli Reagenti Minerali rari.",e:"+10% Alathium Grezzo.",grezzo:1.1},
+ {id:"min3",s:"est",n:"Mineralogia III",pre:["min2"],d:"Raccogli Reagenti Minerali unici.",e:"+10% Alathium Grezzo.",grezzo:1.1},
+ {id:"trerb",s:"est",n:"Trasmutazione Erboristica",pre:["erb3"],d:"Fondi e raffini i Reagenti Vegetali.",e:"+1 Lacrima a ogni raffinazione.",lacrime:1},
+ {id:"trmin",s:"est",n:"Trasmutazione Mineraria",pre:["min3"],d:"Fondi e raffini i Reagenti Minerali.",e:"+1 Lacrima a ogni raffinazione.",lacrime:1},
+ {id:"art1",s:"art",n:"Artigiano I",d:"Ripari oggetti non magici, armature e scudi.",e:"L'avamposto costa il 5% in meno.",cost:.95},
+ {id:"art2",s:"art",n:"Artigiano II",pre:["art1"],d:"Migliori armi, armature e scudi con un effetto speciale.",e:"L'avamposto costa il 5% in meno, +1 Vigore.",cost:.95,st:{vig:1}},
+ {id:"art3",s:"art",n:"Artigiano III",pre:["art2"],d:"Le tue migliorie restano magiche anche all'evento successivo.",e:"L'avamposto costa il 5% in meno, +1 Tempra.",cost:.95,st:{tem:1}},
+ {id:"forgiatore",s:"art",n:"Forgiatore mistico",pre:["art3","vettore","percepire"],d:"Infondi un incanto in un oggetto comune con le Lacrime di Alathium.",e:"+1 Vigore, +1 Ingegno, +2% di successo ovunque.",st:{vig:1,ing:1},all:2},
+ {id:"artef1",s:"art",n:"Artefice I",d:"Realizzi i Progetti Base e da Apprendista.",e:"+2% di successo in tutte le missioni.",all:2},
+ {id:"arml",s:"com",n:"Armature Leggere",d:"+1 PA con armature di Categoria 1.",e:"+1 Tempra.",st:{tem:1}},
+ {id:"armm",s:"com",n:"Armature Medie",pre:["arml"],d:"+2 PA con armature di Categoria 2.",e:"+1 Tempra.",st:{tem:1}},
+ {id:"armp",s:"com",n:"Armature Pesanti",pre:["armm"],d:"+3 PA con armature di Categoria 3.",e:"+1 Tempra, +5% di successo nelle cacce.",st:{tem:1},b:{caccia:5}},
+ {id:"m2mani",s:"com",n:"Maestria nelle armi a due mani",d:"Tecniche a due mani. Una volta al giorno No Effect a Battle Double.",e:"+1 Vigore.",st:{vig:1}},
+ {id:"mcorte",s:"com",n:"Maestria nelle armi a una mano corte",d:"Tecniche con armi corte. Una volta al giorno No Effect a Battle Stun.",e:"+1 Vigore.",st:{vig:1}},
+ {id:"m1mano",s:"com",n:"Maestria nelle armi a una mano",d:"Tecniche a una mano. Una volta al giorno No Effect a Battle Disarm.",e:"+1 Vigore.",st:{vig:1}},
+ {id:"mfuoco",s:"com",n:"Maestria nelle armi da fuoco",d:"Tecniche con armi da fuoco. Una volta al giorno No Effect a Battle Repel.",e:"+1 Vigore.",st:{vig:1}},
+ {id:"mlancio",s:"com",n:"Maestria nelle armi da lancio",d:"Tecniche con armi da lancio. Una volta al giorno No Effect a Battle Through.",e:"+1 Vigore.",st:{vig:1}},
+ {id:"mtiro",s:"com",n:"Maestria nelle armi da tiro",d:"Tecniche con archi e balestre. Una volta al giorno No Effect a Battle Strike Down.",e:"+1 Vigore.",st:{vig:1}},
+ {id:"mscudo",s:"com",n:"Maestria nello Scudo",d:"Tecniche con lo scudo. Una volta al giorno No Effect a Battle Crash.",e:"+1 Tempra.",st:{tem:1}},
+ {id:"rifiatare",s:"com",n:"Rifiatare",pre:["costituzione"],any:MAESTRIE,anyLbl:"una Maestria",d:"In combattimento recuperi 1 PV temporaneo.",e:"Le ferite durano il 10% in meno, +3% nelle cacce.",heal:.9,b:{caccia:3}},
+ {id:"rifmig",s:"com",n:"Rifiatare Migliorato",pre:["rifiatare"],d:"In combattimento recuperi 2 PV temporanei.",e:"Le ferite durano il 10% in meno, +3% nelle cacce.",heal:.9,b:{caccia:3}},
+ {id:"ps",s:"gua",n:"Primo Soccorso",d:"Fermi il Sanguinamento finché resti accanto al ferito.",e:"Le ferite durano il 15% in meno.",heal:.85},
+ {id:"socc",s:"gua",n:"Soccorritore Esperto",pre:["ps"],d:"Fermi il Sanguinamento anche dopo esserti allontanato.",e:"Le ferite durano il 10% in meno.",heal:.9},
+ {id:"arti",s:"gua",n:"Arti Curative",pre:["socc"],d:"Curi completamente le ferite degli altri.",e:"Le cure immediate costano la metà.",healCost:.5},
+ {id:"chir",s:"gua",n:"Chirurgo",pre:["arti"],d:"L'unico che cura chi è Morente o ha subito Crash.",e:"25% di probabilità di non restare ferito quando fallisci.",noWound:.25},
+ {id:"toss",s:"gua",n:"Tossicologo",pre:["arti"],d:"Tratti veleni e malattie e rimuovi il Decay.",e:"+5% di successo nelle Terre Mutate e nelle Profondità.",bdeep:5},
+ {id:"cer1",s:"gua",n:"Cerusico da Campo I",pre:["chir"],d:"Curi un ferito in più contemporaneamente.",e:"Le ferite durano il 5% in meno.",heal:.95},
+ {id:"cer2",s:"gua",n:"Cerusico da Campo II",pre:["cer1"],d:"Curi due feriti in più contemporaneamente.",e:"Le ferite durano il 5% in meno.",heal:.95},
+ {id:"esp1",s:"gua",n:"Espedienti da Campo I",pre:["cer2"],d:"Curi fino a 3 feriti in 10 minuti totali.",e:"Le ferite durano il 5% in meno.",heal:.95},
+ {id:"esp2",s:"gua",n:"Espedienti da Campo II",pre:["esp1"],d:"Curi fino a 3 feriti in 5 minuti totali.",e:"Le ferite durano il 5% in meno.",heal:.95},
+ {id:"guart",s:"gua",n:"Guaritore Tenace",pre:["arti","tenacia"],d:"Curi anche te stesso, se sei cosciente.",e:"Le ferite durano il 20% in meno.",heal:.8},
+ {id:"inc1",s:"mag",n:"Incantatore I",pre:["percepire"],d:"Trascrivi Pergamene Minori e accedi a uno dei Quattro Veli.",e:"+2 Ingegno.",st:{ing:2}},
+ {id:"dono",s:"mag",n:"Dono del Potere",pre:["percepire"],d:"Annulli la meditazione di un altro Incantatore facendotene carico.",e:"+1 Ingegno, +1 Fortuna.",st:{ing:1,fort:1}},
+ {id:"incleg",s:"mag",n:"Incantatore Leggero",pre:["inc1"],any:ARMATURE,anyLbl:"un'abilità Armatura",d:"Lanci Trucchetti e Incantesimi da Apprendista in armatura.",e:"+1 Vigore, +1 Ingegno.",st:{vig:1,ing:1}},
+ {id:"rit1",s:"rit",n:"Ritualista I",pre:["vettore"],d:"Accedi ai Rituali da Apprendista e recuperi Lacrime di Alathium.",e:"+1 Lacrima a ogni raffinazione, +50% esperienza dalle consegne.",lacrime:1,delivXp:1.5},
+ {id:"rmon1",s:"ren",n:"Rendita Monetaria I",pre:["valutare"],d:"Ricevi 1 moneta d'argento a ogni evento.",e:"+1 Mezza Luna a ogni missione riuscita.",perFalci:10},
+ {id:"rmon2",s:"ren",n:"Rendita Monetaria II",pre:["rmon1"],d:"Ricevi 3 monete d'argento a ogni evento.",e:"In tutto +3 Mezze Lune a ogni missione riuscita.",perFalci:20},
+ {id:"rmon3",s:"ren",n:"Rendita Monetaria III",pre:["rmon2"],d:"Ricevi 6 monete d'argento a ogni evento.",e:"In tutto +6 Mezze Lune a ogni missione riuscita.",perFalci:30},
+ {id:"rerb1",s:"ren",n:"Rendita Erboristica I",pre:["erb1"],d:"Ricevi 1 Reagente Vegetale e 1 Base a ogni evento.",e:"+1 Alathium Grezzo a ogni missione riuscita.",perGrezzo:1},
+ {id:"rerb2",s:"ren",n:"Rendita Erboristica II",pre:["rerb1"],d:"Ricevi 2 Reagenti Vegetali e 1 Base a ogni evento.",e:"+1 Alathium Grezzo a ogni missione riuscita.",perGrezzo:1},
+ {id:"rerb3",s:"ren",n:"Rendita Erboristica III",pre:["rerb2"],d:"Ricevi 3 Reagenti Vegetali e 1 Base a ogni evento.",e:"+1 Alathium Grezzo a ogni missione riuscita.",perGrezzo:1},
+ {id:"rmin1",s:"ren",n:"Rendita Mineraria I",pre:["min1"],d:"Ricevi 1 Reagente Minerario e 1 Base a ogni evento.",e:"+1 Alathium Grezzo a ogni missione riuscita.",perGrezzo:1},
+ {id:"rmin2",s:"ren",n:"Rendita Mineraria II",pre:["rmin1"],d:"Ricevi 2 Reagenti Minerari e 1 Base a ogni evento.",e:"+1 Alathium Grezzo a ogni missione riuscita.",perGrezzo:1},
+ {id:"rmin3",s:"ren",n:"Rendita Mineraria III",pre:["rmin2"],d:"Ricevi 3 Reagenti Minerari e 1 Base a ogni evento.",e:"+1 Alathium Grezzo a ogni missione riuscita.",perGrezzo:1},
+ {id:"ricett",s:"ren",n:"Ricettatore",pre:["manolesta"],d:"Ricevi a ogni evento un piccolo rifornimento rubato e casuale.",e:"20% di probabilità di uno Smeraldo extra dopo ogni missione riuscita.",ricett:.2}
+];
+const AB={};ABIL.forEach(a=>AB[a.id]=a);
+WORLD.form.items.forEach(f=>{f.a=AB[f.free].n;f.d=AB[f.free].e});
+const PS_START=16,PS_MIN=15,AB_COST=3;
+
+const ZONES=[
+ {id:"margini",n:"Margini dell'Infezione",c:"z1",base:62,durs:[600,3600],lune:[70,200],gem:[.12,["smeraldo"]],gz:[0,4],xp:40,req:0},
+ {id:"mutate",n:"Terre Mutate",c:"z2",base:42,durs:[3600,28800],lune:[500,1300],gem:[.25,["smeraldo","rubino"]],gz:[6,15],xp:130,req:1},
+ {id:"prof",n:"Verso le Profondità",c:"z3",base:24,durs:[28800,86400],lune:[2500,6000],gem:[.4,["rubino","diamante"]],gz:[20,40],xp:450,req:3}
+];
+const GEMS={smeraldo:{n:"Smeraldo",v:100},rubino:{n:"Rubino",v:500},diamante:{n:"Diamante",v:1000}};
+const TYPES={
+ caccia:{n:"Caccia",st:"vig",t:["Abbatti un'Aberrazione presso {L}","Una nidiata di Senza sepoltura infesta {L}","Qualcosa di enorme si muove vicino a {L}"],
+   ok:["L'Aberrazione cade. Nel suo petto qualcosa ancora brilla.","Hai respinto i Senza sepoltura. Il silenzio torna, per ora."],
+   ko:["La creatura era più forte del previsto. Ti ritiri sanguinante.","Ti hanno circondato. Ne esci a fatica."]},
+ esplor:{n:"Rovine",st:"ing",t:["Rovine di una civiltà estinta oltre {L}","Un'iscrizione in una lingua perduta a {L}","Un archivio sepolto sotto {L}"],
+   ok:["Tra le pietre trovi oggetti di un'epoca dimenticata.","Decifri parte dell'iscrizione e ne ricavi un indizio prezioso."],
+   ko:["Il soffitto cede mentre studi i simboli.","Una trappola antica scatta sotto i tuoi piedi."]},
+ raccolta:{n:"Alathium",st:"tem",t:["Cristalli di Alathium in una caverna a {L}","Fiori oscuri di Alathium spuntano a {L}","Una vena di Alathium Grezzo nelle viscere di {L}"],
+   ok:["Estrai i cristalli con cura. Pulsano nel sacco come cuori.","La vena è ricca: torni carico di Alathium Grezzo."],
+   ko:["L'Alathium si incrina tra le tue mani e ti ferisce.","La caverna era il nido di qualcosa. Fuggi a mani quasi vuote."]},
+ recupero:{n:"Recupero",st:"fort",t:["Recupera i resti di una pattuglia dispersa a {L}","Un carico della Loggia è rimasto a {L}","Ritrova la lanterna di un Eletto caduto a {L}"],
+   ok:["Trovi quello che cercavi, e anche qualcosa in più.","Il carico è intatto. La Loggia ti sarà grata."],
+   ko:["Le piante mutate ti si avvinghiano alle gambe.","Era un'imboscata. Torni ferito."]}
+};
+const PLACES={margini:["il Varco Grigio","il Bosco Contorto","la Gola delle Spine","un avamposto abbandonato"],
+ mutate:["le Paludi Mute","la Piana dei Lamenti","le Radici Nere","un villaggio inghiottito"],
+ prof:["l'orlo della Ferita","la Cattedrale d'Ossa","il Pozzo dei Sussurri"]};
+
+const OUT=[
+ {id:"palizzata",n:"Palizzata",d:"Liv. 1 sblocca le Terre Mutate, liv. 3 la via per le Profondità. +1 Tempra a livello.",lune:400,lac:2,st:"tem"},
+ {id:"laboratorio",n:"Laboratorio alchemico",d:"Serve per raffinare l'Alathium Grezzo. Ogni livello dà 1 Lacrima in più.",lune:200,lac:0},
+ {id:"infermeria",n:"Infermeria",d:"Le ferite guariscono il 15% più in fretta a ogni livello.",lune:500,lac:2},
+ {id:"armeria",n:"Armeria",d:"+1 Vigore a livello.",lune:600,lac:3,st:"vig"},
+ {id:"biblioteca",n:"Biblioteca",d:"+1 Ingegno a livello.",lune:600,lac:3,st:"ing"},
+ {id:"vedetta",n:"Torre di vedetta",d:"+1 Fortuna a livello.",lune:600,lac:3,st:"fort"},
+ {id:"bottega",n:"Bottega dell'avamposto",d:"Vende ai carovanieri di passaggio: produce Lune anche mentre non giochi.",lune:250,lac:0,prod:"falci",rate:30},
+ {id:"scavo",n:"Scavo di Alathium",d:"Una squadra estrae Alathium Grezzo dalle rocce vicine, ora dopo ora.",lune:500,lac:2,prod:"grezzo",rate:.5},
+ {id:"distilleria",n:"Distilleria",d:"Distilla lentamente Lacrime di Alathium. Serve il Laboratorio alchemico.",lune:800,lac:3,prod:"lacrime",rate:.25,req:"laboratorio"},
+ {id:"magazzino",n:"Magazzino",d:"La produzione si accumula fino a 8 ore. Ogni livello aggiunge 4 ore.",lune:400,lac:2}
+];
+const RANKS=[[0,"Recluta"],[3,"Guardiano della Cintura"],[10,"Veterano"],[25,"Custode del Bastione"],[60,"Leggenda della Loggia"]];
+
+/* ================= STATO ================= */
+const KEY="alarion_save_v2";
+/* Indirizzo del server della classifica (Cloudflare Worker), es. "https://alarion.tuonome.workers.dev". Vuoto = classifica di esempio */
+const API_URL="";
+const online=()=>!!(API_URL&&tg&&tg.initData);
+function api(path,data){return fetch(API_URL.replace(/\/$/,"")+path,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(Object.assign({initData:tg.initData},data||{}))})
+ .then(r=>r.json().catch(()=>({})).then(j=>Object.assign({status:r.status},j)))}
+let syncT;function syncScore(){if(!online()||!S.created)return;clearTimeout(syncT);syncT=setTimeout(()=>{api("/api/punteggio",{consegnato:S.consegnato,level:S.level,loggia:S.picks.loggia,regno:S.picks.regno}).catch(()=>{})},800)}
+const NAME_RE=/^[\p{L}\p{M}' .-]{3,24}$/u;
+const cleanName=n=>n.replace(/\s+/g," ").trim();
+let S=load()||fresh();S.abil=S.abil||[];S.prod=S.prod||{last:Date.now(),acc:{}};
+function fresh(){return{created:false,step:0,picks:{},rerolls:2,
+ name:(tg&&tg.initDataUnsafe&&tg.initDataUnsafe.user&&tg.initDataUnsafe.user.first_name)||"",
+ falci:0,grezzo:0,lacrime:0,puro:0,consegnato:0,xp:0,level:1,ps:0,spent:{vig:0,ing:0,fort:0,tem:0},
+ abil:[],out:{},board:[],active:null,woundUntil:0,report:null,tab:"missioni",missions:0}}
+function load(){try{const r=localStorage.getItem(KEY);return r?JSON.parse(r):null}catch(e){return null}}
+function save(){S.saved=Date.now();const j=JSON.stringify(S);try{localStorage.setItem(KEY,j)}catch(e){}try{if(tg&&tg.CloudStorage&&j.length<4000)tg.CloudStorage.setItem(KEY,j)}catch(e){}}
+/* Su Telegram il salvataggio sta anche nel cloud del bot: se lì c'è una versione più recente (es. da un altro telefono), la carica */
+try{if(tg&&tg.CloudStorage)tg.CloudStorage.getItem(KEY,(err,v)=>{if(err||!v)return;try{const c=JSON.parse(v);if((c.saved||0)>(S.saved||0)){S=c;S.abil=S.abil||[];S.prod=S.prod||{last:Date.now(),acc:{}};render()}}catch(e){}})}catch(e){}
+
+const freeAb=()=>{const f=WORLD.form.items.find(i=>i.id===S.picks.form);return f?f.free:null};
+const owned=id=>id===freeAb()||(S.abil||[]).includes(id);
+const myAbil=()=>{const f=freeAb(),l=(S.abil||[]).slice();if(f&&!l.includes(f))l.unshift(f);return l};
+const picks=()=>ORDER.map(k=>WORLD[k].items.find(i=>i.id===S.picks[k])).filter(Boolean).concat(myAbil().map(id=>AB[id]).filter(Boolean));
+const sum=key=>picks().reduce((a,p)=>a+(p[key]||0),0);
+const pick=k=>WORLD[k].items.find(i=>i.id===S.picks[k])||{};
+const mult=key=>picks().reduce((m,p)=>m*(p[key]===undefined?1:p[key]),1);
+const has=key=>picks().some(p=>p[key]);
+const lvl=id=>S.out[id]||0;
+function stat(k){let v=2+S.spent[k];picks().forEach(p=>{if(p.st&&p.st[k])v+=p.st[k]});OUT.forEach(o=>{if(o.st===k)v+=lvl(o.id)});return v}
+function typeBonus(t){return picks().reduce((a,p)=>a+((p.b&&p.b[t])||0),0)}
+function zonesOpen(){return ZONES.filter(z=>lvl("palizzata")>=z.req)}
+function xpNeed(l){return Math.floor(30*Math.pow(l,1.4))}
+function rnd(a,b){return a+Math.random()*(b-a)} function ri(a,b){return Math.floor(rnd(a,b+1))}
+function any(a){return a[Math.floor(Math.random()*a.length)]}
+
+function coins(f){f=Math.max(0,Math.floor(f));const L=Math.floor(f/100),M=Math.floor(f%100/10),F=f%10;const out=[];
+ if(L)out.push(L.toLocaleString("it-IT")+(L===1?" Luna":" Lune"));if(M)out.push(M+(M===1?" Mezza":" Mezze"));if(F||!out.length)out.push(F+(F===1?" Falce":" Falci"));return out.join(" ")}
+function coinsShort(f){f=Math.max(0,Math.floor(f));const L=Math.floor(f/100),M=Math.floor(f%100/10),F=f%10;return [L&&L.toLocaleString("it-IT")+" L",M&&M+" M",F&&F+" F"].filter(Boolean).join(" ")||"0 F"}
+function dur(s){s=Math.max(0,Math.ceil(s));if(s<60)return s+" s";const m=Math.floor(s/60),r=s%60;if(m<60)return m+" min"+(r?" "+r+" s":"");return Math.floor(m/60)+" h"+(m%60?" "+(m%60)+" min":"")}
+function clock(s){s=Math.max(0,Math.ceil(s));const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60,p=n=>String(n).padStart(2,"0");return(h?h+":":"")+p(m)+":"+p(x)}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+
+/* ================= MISSIONI ================= */
+function makeMission(zone){
+ const z=zone||any(zonesOpen()),tk=any(Object.keys(TYPES)),T=TYPES[tk];
+ const d=any(z.durs);
+ return{id:Math.random().toString(36).slice(2,8),z:z.id,type:tk,title:any(T.t).replace("{L}",any(PLACES[z.id])),dur:d,diff:ri(0,18)}}
+function chance(m){const z=ZONES.find(x=>x.id===m.z),T=TYPES[m.type];
+ return Math.max(5,Math.min(95,Math.round(z.base+stat(T.st)*5+stat("fort")*1.5+typeBonus(m.type)+sum("all")+(m.z!=="margini"?sum("bdeep"):0)-m.diff)))}
+function realDur(m){return Math.round(m.dur*mult("dur"))}
+function fillBoard(){const size=3+sum("board");
+ S.board=S.board.filter(m=>zonesOpen().some(z=>z.id===m.z&&z.durs.includes(m.dur)));
+ while(S.board.length<size){const open=zonesOpen();const z=S.board.some(m=>m.z==="margini")?any(open):open[0];S.board.push(makeMission(z))}}
+function startMission(id){
+ const m=S.board.find(x=>x.id===id);if(!m||S.active||wounded())return;
+ const z=ZONES.find(x=>x.id===m.z),ok=Math.random()*100<chance(m),f=Math.pow(m.dur/3600,.7);
+ const scale=f*(m.dur>=28800?mult("long"):1)*(z.id!=="margini"?mult("deep"):1);
+ const dbl=ok&&Math.random()<mult("double")-(has("double")?0:1)?2:1;
+ const loot={falci:0,gems:[],grezzo:0,xp:0,dbl:dbl>1};
+ if(ok){loot.falci=Math.round(rnd(z.lune[0],z.lune[1])*scale*mult("lune")*dbl);
+  let gc=z.gem[0]*Math.sqrt(f)*mult("gemme")*(m.type==="recupero"?1.5:1);while(gc>0){if(Math.random()<Math.min(gc,1))loot.gems.push(any(z.gem[1]));gc-=1}
+  loot.grezzo=Math.round(rnd(z.gz[0],z.gz[1])*(m.type==="raccolta"?2.2:1)*scale*mult("grezzo")*dbl);
+  if(m.type==="esplor")loot.xp+=Math.round(z.xp*.4);
+  loot.falci+=sum("perFalci");loot.grezzo+=sum("perGrezzo");if(Math.random()<sum("ricett"))loot.gems.push("smeraldo");
+ }
+ loot.xp+=Math.round(z.xp*f*(ok||has("failxp")?1:.35)*mult("xp"));
+ const d=realDur(m);
+ S.active={m,ok,loot,start:Date.now(),end:Date.now()+d*1000,text:any(ok?TYPES[m.type].ok:TYPES[m.type].ko)};
+ S.board=S.board.filter(x=>x.id!==id);haptic('medium');save();render()}
+function claim(){
+ const A=S.active;if(!A||Date.now()<A.end)return;const L=A.loot;
+ const gemF=L.gems.reduce((a,g)=>a+GEMS[g].v,0);S.falci+=L.falci+gemF;S.grezzo+=L.grezzo;gainXp(L.xp);S.missions++;
+ if(!A.ok){const wz=ZONES.find(z=>z.id===A.m.z);if(Math.random()<sum("noWound")){A.saved=true}else{const w=Math.min(4*3600,Math.max(300,realDur(A.m)*.25))*Math.max(.2,mult("heal")*(1-.15*lvl("infermeria")));S.woundUntil=Date.now()+w*1000}}
+ S.report=A;S.active=null;fillBoard();haptic(A.ok?'heavy':'medium');save();render()}
+function recall(){if(!S.active)return;S.board.unshift(S.active.m);S.active=null;save();render();toast("Hai richiamato il personaggio. Nessun bottino.")}
+function wounded(){return Date.now()<S.woundUntil}
+function healCost(){const left=(S.woundUntil-Date.now())/1000;return Math.max(5,Math.round(left/6*mult("healCost")))}
+function gainXp(x){S.xp+=x;while(S.xp>=xpNeed(S.level)){S.xp-=xpNeed(S.level);S.level++;S.ps++;toast(`Livello ${S.level}! Hai 1 Punto Scheda da spendere.`);haptic('heavy');syncScore()}}
+
+/* ================= AVAMPOSTO E ALATHIUM ================= */
+/* ---- produzione passiva: si accumula nel tempo fino al limite del magazzino ---- */
+const PRODS=()=>OUT.filter(o=>o.prod);
+const prodRate=o=>{const L=lvl(o.id);return L?o.rate*L*Math.pow(1.5,L-1):0};
+const capHours=()=>8+4*lvl("magazzino");
+const PNAME={falci:"Lune",grezzo:"Alathium Grezzo",lacrime:"Lacrime"};
+function settleProd(){const now=Date.now();S.prod=S.prod||{last:now,acc:{}};const h=Math.max(0,(now-S.prod.last)/3600000);
+ PRODS().forEach(o=>{const r=prodRate(o);if(!r)return;S.prod.acc[o.prod]=Math.min(r*capHours(),(S.prod.acc[o.prod]||0)+r*h)});S.prod.last=now}
+function prodFull(){return PRODS().some(o=>prodRate(o)&&(S.prod&&S.prod.acc[o.prod]||0)>=prodRate(o)*capHours()-1e-9)}
+function collect(){settleProd();const got=[];PRODS().forEach(o=>{const v=Math.floor(S.prod.acc[o.prod]||0);if(v<=0)return;S[o.prod]+=v;S.prod.acc[o.prod]-=v;got.push(o.prod==="falci"?coins(v):`${v} ${PNAME[o.prod]}`)});
+ if(!got.length)return toast("Non c'è ancora niente da raccogliere.");toast("Raccolto: "+got.join(", ")+".");haptic('medium');save();render()}
+function prodAmount(o,v){return o.prod==="falci"?coinsShort(v):Math.floor(v)}
+function prodCard(){settleProd();const ps=PRODS().filter(o=>prodRate(o));
+ if(!ps.length)return`<div class="card"><span class="lbl">Produzione dell'avamposto</span><h3>Le tue strutture lavorano per te</h3><p class="small muted">Costruisci la Bottega, lo Scavo o la Distilleria: produrranno Lune, Alathium Grezzo e Lacrime anche quando il gioco è chiuso.</p></div>`;
+ const any=ps.some(o=>(S.prod.acc[o.prod]||0)>=1);
+ return`<div class="card${prodFull()?" hot":""}"><div class="timer"><div class="ti"><span class="lbl">Produzione dell'avamposto</span><h3>${prodFull()?"Il magazzino è pieno":"Le tue strutture lavorano per te"}</h3></div>
+  <button class="primary" id="col" ${any?"":"disabled"}>Raccogli</button></div>
+  <div class="prods">${ps.map(o=>{const v=S.prod.acc[o.prod]||0,cap=prodRate(o)*capHours();return`<div class="prow"><div class="ph"><b>${o.n}</b><span class="pv" id="pv-${o.id}">${prodAmount(o,v)}</span></div>
+   <div class="bar"><i id="pb-${o.id}" style="width:${v/cap*100}%"></i></div><span class="small muted">${o.prod==="falci"?coins(prodRate(o)):(Math.round(prodRate(o)*100)/100).toLocaleString("it-IT")+" "+PNAME[o.prod]} all'ora · pieno dopo ${capHours()} ore</span></div>`}).join("")}</div></div>`}
+function outCost(o){const L=lvl(o.id);return{f:Math.ceil(o.lune*Math.pow(2.1,L)*mult("cost")),lac:o.lac?Math.ceil(o.lac*(L+1)*mult("cost")):2*L}}
+function buy(id){const o=OUT.find(x=>x.id===id),c=outCost(o);if(lvl(id)>=5||S.falci<c.f||S.lacrime<c.lac||(o.req&&lvl(o.req)<1))return;
+ settleProd();S.falci-=c.f;S.lacrime-=c.lac;S.out[id]=lvl(id)+1;
+ if(id==="palizzata"){const z=ZONES.find(z=>z.req===S.out[id]);if(z){toast(`Si apre una nuova zona: ${z.n}.`);S.board.pop();S.board.push(makeMission(z))}}
+ fillBoard();haptic('medium');save();render()}
+const canRefine=()=>lvl("laboratorio")>=1||has("refineNoLab");
+function refine(){if(!canRefine()||S.grezzo<4)return;const n=Math.floor(S.grezzo/4);S.grezzo-=n*4;
+ const lac=n*(1+lvl("laboratorio")+sum("lacrime"));S.lacrime+=lac;S.puro+=n;
+ toast(`Raffinati ${n*4} Grezzo: ${lac} Lacrime e ${n} Alathium Puro.`);haptic('medium');save();render()}
+function deliver(){if(!S.puro)return;const n=S.puro;S.consegnato+=n;S.puro=0;S.falci+=Math.round(n*50*mult("puroPay"));gainXp(Math.round(n*20*mult("delivXp")));syncScore();
+ toast(`Consegnato ${n} Alathium Puro alla Loggia. La Cintura di Norendas si rafforza.`);save();render()}
+const dayKey=(t=new Date())=>t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0")+"-"+String(t.getDate()).padStart(2,"0");
+function dailyState(){const d=S.daily||{last:null,streak:0},y=new Date();y.setDate(y.getDate()-1);
+ const ready=d.last!==dayKey(),streak=ready?(d.last===dayKey(y)?d.streak+1:1):d.streak;return{ready,streak:Math.min(streak,7)}}
+function dailyReward(){const ri=RANKS.findIndex(r=>r[1]===rank().r),st=dailyState().streak,m=(1+.5*ri)*(1+.1*(st-1));
+ return{falci:Math.round((150+40*S.level)*m),lacrime:1+ri,grezzo:2+Math.floor(S.level/2)}}
+function toMidnight(){const t=new Date();t.setHours(24,0,0,0);return(t-Date.now())/1000}
+function claimDaily(){const ds=dailyState();if(!ds.ready)return;const r=dailyReward();S.falci+=r.falci;S.lacrime+=r.lacrime;S.grezzo+=r.grezzo;
+ S.daily={last:dayKey(),streak:ds.streak};toast(`Compenso ritirato: ${coins(r.falci)}, ${r.lacrime} Lacrime e ${r.grezzo} Grezzo.`);haptic('heavy');save();render()}
+function rank(){let r=RANKS[0][1],next=null;for(const[t,n]of RANKS){if(S.consegnato>=t)r=n;else{next=[t,n];break}}return{r,next}}
+function spend(k){if(S.ps<1)return;S.ps--;S.spent[k]++;haptic();save();render()}
+
+/* ================= CREAZIONE ================= */
+const app=document.getElementById("app");let spinning=false,rot=0,lastResult=null;
+function renderCreate(){
+ if(S.step===0){
+  app.innerHTML=`<div><div class="lbl">Cronache di Alarion</div><h1>La tua lanterna non si è spenta</h1></div>
+  <p class="muted">Sei nato Eletto. Ora devi decidere il tuo Regno, la tua Formazione e la Loggia che ti accoglierà. Puoi sceglierli tu, oppure affidarti alla ruota del destino (con <b>${S.rerolls}</b> possibilità di rigirarla).</p>
+  <label class="lbl" for="nm">Nome del personaggio</label><input id="nm" maxlength="24" autocomplete="off" placeholder="Es. Ingrid di Acquaneve" value="${esc(S.name)}">
+  <p class="small muted" id="nerr">Da 3 a 24 lettere. Ogni nome è unico: due Eletti non possono chiamarsi allo stesso modo.</p>
+  <div class="row"><button id="goc">Scelgo io</button><button class="primary" id="go">Gira la ruota del destino</button></div>`;
+  const err=(t,bad)=>{const e=document.getElementById("nerr");e.textContent=t;e.className="small "+(bad?"bad":"muted")};
+  const begin=mode=>{const name=cleanName(document.getElementById("nm").value);
+   if(!NAME_RE.test(name))return err("Il nome deve avere da 3 a 24 caratteri e contenere solo lettere, spazi, apostrofi, punti o trattini.",true);
+   const go=()=>{S.name=name;S.mode=mode;S.step=1;save();render()};
+   if(!online())return go();
+   const bs=[document.getElementById("go"),document.getElementById("goc")];bs.forEach(b=>b.disabled=true);err("Controllo che il nome sia libero…");
+   api("/api/nome",{name,reset:true}).then(r=>{bs.forEach(b=>b.disabled=false);
+     if(r.status===200&&r.ok)go();else if(r.status===409)err(`«${name}» è già il nome di un altro Eletto. Scegline un altro.`,true);else err(r.error||"Il server non ha risposto. Riprova tra poco.",true)})
+    .catch(()=>{bs.forEach(b=>b.disabled=false);err("Non riesco a controllare il nome. Controlla la connessione e riprova.",true)})};
+  document.getElementById("go").onclick=()=>begin("wheel");document.getElementById("goc").onclick=()=>begin("choose");return}
+ if(S.step===ORDER.length+1)return renderAbilStep();
+ if(S.step>ORDER.length+1)return renderSummary();
+ const k=ORDER[S.step-1];
+ if(S.mode==="choose")return renderChoose(k);
+ app.innerHTML=`<div class="steps">${stepsBar()}</div>
+ <div><div class="lbl">${esc(S.name)} · ruota ${S.step} di ${ORDER.length+1}</div><h1>${WORLD[k].title}</h1></div>
+ <div class="wheelbox"><canvas id="wh" width="680" height="680"></canvas><div class="pin"></div></div><div id="res"></div>`;
+ lastResult=null;draw();showRes()}
+function preOk(a){return(a.pre||[]).every(owned)&&(!a.any||a.any.some(owned))}
+const goLink=(id,txt)=>`<button type="button" class="golink${owned(id)?" ok":""}" data-go="${id}">${txt||AB[id].n}</button>`;
+function preText(a){const p=(a.pre||[]).map(id=>goLink(id));if(a.any)p.push(a.anyLbl?goLink(a.any.find(owned)||a.any[0],a.anyLbl):a.any.map(id=>goLink(id)).join(" o "));return p.length?"Richiede: "+p.join(", "):""}
+function goTo(root,id){const row=root.querySelector("#ab-"+id);if(!row)return;const d=row.closest("details");if(d&&!d.open){d.open=true;openSec.add(d.dataset.s)}
+ const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;row.scrollIntoView({block:"center",behavior:reduce?"auto":"smooth"});
+ row.classList.remove("flash");void row.offsetWidth;row.classList.add("flash");haptic()}
+function dependents(id){return(S.abil||[]).filter(x=>{const b=AB[x];if((b.pre||[]).includes(id))return true;if(b.any&&b.any.includes(id))return!b.any.some(y=>y!==id&&owned(y));return false})}
+function prune(){S.abil=S.abil||[];let ch=true;while(ch){ch=false;const f=freeAb();S.abil=S.abil.filter(id=>id!==f&&AB[id]);for(const id of S.abil.slice())if(!preOk(AB[id])){S.abil=S.abil.filter(x=>x!==id);ch=true}}}
+const openSec=new Set(["gen"]);
+function abilList(mode){const left=mode==="create"?PS_START-AB_COST*S.abil.length:S.ps;
+ return SECS.map(([k,n])=>{const list=ABIL.filter(a=>a.s===k),have=list.filter(a=>owned(a.id)).length;
+  return`<details class="sec" data-s="${k}" ${openSec.has(k)?"open":""}><summary><span class="sn">${n}</span><span class="small ${have?"good":"muted"}">${have?have+" su "+list.length:list.length+" abilità"}</span></summary>
+  <div class="abl">${list.map(a=>{const o=owned(a.id),free=a.id===freeAb(),ok=preOk(a),pt=preText(a);let btn;
+   if(free)btn=`<span class="chip">Gratuita</span>`;
+   else if(o)btn=mode==="create"?`<button data-rm="${a.id}" ${dependents(a.id).length?"disabled":""}>Togli</button>`:`<span class="chip">Appresa</span>`;
+   else btn=`<button data-add="${a.id}" ${!ok||left<AB_COST?"disabled":""}>Prendi</button>`;
+   return`<div class="ab${o?" own":""}${!o&&!ok?" lock":""}" id="ab-${a.id}"><div class="abt"><b>${a.n}</b><span class="small">${a.e}</span>${pt?`<span class="small ${ok?"muted":"bad"}">${pt}</span>`:""}${o&&!free&&mode==="create"&&dependents(a.id).length?`<span class="small muted">Serve ad altre abilità che hai scelto</span>`:""}</div>${btn}</div>`}).join("")}</div></details>`}).join("")}
+function bindAbil(root,mode,rerender){
+ root.querySelectorAll("details.sec").forEach(d=>d.addEventListener("toggle",()=>{d.open?openSec.add(d.dataset.s):openSec.delete(d.dataset.s)}));
+ root.querySelectorAll("[data-go]").forEach(b=>b.onclick=e=>{e.preventDefault();goTo(root,b.dataset.go)});
+ root.querySelectorAll("[data-add]").forEach(b=>b.onclick=()=>{const id=b.dataset.add;if(!preOk(AB[id]))return;
+  if(mode==="game"){if(S.ps<AB_COST)return;S.ps-=AB_COST;toast(`Hai appreso ${AB[id].n}.`)}else if(PS_START-AB_COST*S.abil.length<AB_COST)return;
+  S.abil.push(id);haptic();save();const y=window.scrollY;rerender();window.scrollTo(0,y)});
+ root.querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{S.abil=S.abil.filter(x=>x!==b.dataset.rm);haptic();save();const y=window.scrollY;rerender();window.scrollTo(0,y)})}
+function renderAbilStep(){prune();const spent=AB_COST*S.abil.length,left=PS_START-spent,need=Math.ceil(Math.max(0,PS_MIN-spent)/AB_COST);
+ app.innerHTML=`<div class="steps">${stepsBar()}</div>
+ <div><div class="lbl">${esc(S.name)} · passo ${ORDER.length+1} di ${ORDER.length+1}</div><h1>Abilità</h1></div>
+ <p class="muted small">Hai ${PS_START} Punti Scheda. Ogni abilità costa ${AB_COST} PS e alla creazione devi spenderne almeno ${PS_MIN}. Dalla Formazione hai già <b>${AB[freeAb()].n}</b> gratis. Le sezioni si aprono toccando il titolo.</p>
+ ${abilList("create")}
+ <div class="row stick" style="align-items:center"><span class="psleft"><b>${left}</b> PS</span>${S.mode==="choose"?`<button id="back">Indietro</button>`:""}<button class="primary" id="conf" ${need?"disabled":""}>${need?`Scegline ancora ${need}`:"Conferma"}</button></div>`;
+ bindAbil(app,"create",renderAbilStep);
+ document.getElementById("conf").onclick=()=>{if(AB_COST*S.abil.length<PS_MIN)return;S.step++;save();render();window.scrollTo(0,0)};
+ if(document.getElementById("back"))document.getElementById("back").onclick=()=>{S.step--;save();render()}}
+const stepsBar=()=>[...ORDER,"ab"].map((_,i)=>`<i class="${i<S.step?'on':''}"></i>`).join("");
+let chosen=null;
+function renderChoose(k){const W=WORLD[k];chosen=S.picks[k]||null;
+ app.innerHTML=`<div class="steps">${stepsBar()}</div>
+ <div><div class="lbl">${esc(S.name)} · scelta ${S.step} di ${ORDER.length+1}</div><h1>${W.title}</h1></div>
+ <div class="opts" role="radiogroup" aria-label="${W.title}">${W.items.map(it=>`<button class="opt" role="radio" data-id="${it.id}" aria-checked="${chosen===it.id}">
+  <b>${it.n}</b>${it.m?`<span class="motto small">«${it.m}»</span>`:""}${it.a?`<span class="small muted">Abilità gratuita: ${it.a}</span>`:""}<span class="small">${it.d}</span></button>`).join("")}</div>
+ <div class="row stick">${S.step>1?`<button id="back">Indietro</button>`:""}<button class="primary" id="conf" ${chosen?'':'disabled'}>Conferma</button></div>`;
+ app.querySelectorAll(".opt").forEach(b=>b.onclick=()=>{chosen=b.dataset.id;app.querySelectorAll(".opt").forEach(o=>o.setAttribute("aria-checked",o.dataset.id===chosen));document.getElementById("conf").disabled=false;haptic()});
+ document.getElementById("conf").onclick=()=>{if(!chosen)return;S.picks[k]=chosen;S.step++;save();render();window.scrollTo(0,0)};
+ if(document.getElementById("back"))document.getElementById("back").onclick=()=>{S.step--;save();render()}}
+function showRes(){const k=ORDER[S.step-1],box=document.getElementById("res");
+ if(!lastResult){box.innerHTML=`<button class="primary" id="spin" style="width:100%">Gira</button><button id="tochoose" style="width:100%;margin-top:8px">Preferisco scegliere io</button>`;
+  document.getElementById("spin").onclick=spin;document.getElementById("tochoose").onclick=()=>{S.mode="choose";save();render()};return}
+ const r=lastResult;
+ box.innerHTML=`<div class="card"><span class="lbl">${WORLD[k].title}</span><span class="big">${r.n}</span>${r.m?`<span class="motto">«${r.m}»</span>`:""}${r.a?`<span class="small muted">Abilità gratuita: ${r.a}</span>`:""}<span>${r.d}</span></div>
+ <div class="row" style="margin-top:10px"><button id="rr" ${S.rerolls<1?'disabled':''}>Rigira (${S.rerolls})</button><button class="primary" id="ok">Accetta</button></div>`;
+ document.getElementById("rr").onclick=()=>{if(S.rerolls<1)return;S.rerolls--;save();spin()};
+ document.getElementById("ok").onclick=()=>{S.picks[k]=r.id;S.step++;save();render()}}
+function draw(){const c=document.getElementById("wh");if(!c)return;const x=c.getContext("2d"),items=WORLD[ORDER[S.step-1]].items;
+ const cs=getComputedStyle(document.documentElement),g=v=>cs.getPropertyValue(v).trim(),col=[g("--seg1"),g("--seg2"),g("--seg3")];
+ const R=330,cx=340,a=Math.PI*2/items.length,fs=items.length>8?24:30;x.clearRect(0,0,680,680);
+ items.forEach((it,i)=>{const s=-Math.PI/2+rot+i*a;x.beginPath();x.moveTo(cx,cx);x.arc(cx,cx,R,s,s+a);x.closePath();
+  x.fillStyle=col[i%(items.length%3===1?2:3)];x.fill();x.strokeStyle=g("--line");x.lineWidth=2;x.stroke();
+  x.save();x.translate(cx,cx);x.rotate(s+a/2);x.fillStyle=g("--ink");x.textAlign="right";x.textBaseline="middle";
+  x.font=`700 ${fs}px "Open Sans", sans-serif`;x.fillText(it.n,R-22,0);x.restore()});
+ x.beginPath();x.arc(cx,cx,R,0,Math.PI*2);x.strokeStyle=g("--strong");x.lineWidth=8;x.stroke();
+ x.beginPath();x.arc(cx,cx,34,0,Math.PI*2);x.fillStyle=g("--flame");x.fill()}
+function spin(){if(spinning)return;spinning=true;lastResult=null;
+ const items=WORLD[ORDER[S.step-1]].items,a=Math.PI*2/items.length,idx=Math.floor(Math.random()*items.length),T=Math.PI*2,start=rot;
+ let target=T*(Math.ceil(start/T)+5)-(idx+.5)*a+(Math.random()-.5)*a*.7;while(target<start+T*4)target+=T;
+ const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches,D=reduce?10:3400,t0=performance.now();let last=-1;
+ document.getElementById("res").innerHTML=`<p class="muted" style="text-align:center">La ruota gira…</p>`;
+ (function f(now){const p=Math.min(1,(now-t0)/D),e=1-Math.pow(1-p,4);rot=start+(target-start)*e;draw();
+  const seg=Math.floor((((-rot)%T)+T*2)%T/a);if(seg!==last){last=seg;if(p<.97)haptic('light')}
+  if(p<1)requestAnimationFrame(f);else{rot=target%T;spinning=false;lastResult=items[idx];haptic('medium');showRes()}})(t0)}
+function renderSummary(){const[r,f,l]=[pick("regno"),pick("form"),pick("loggia")];
+ app.innerHTML=`<div class="steps">${stepsBar()}</div>
+ <div><div class="lbl">Scheda dell'Eletto</div><h1>${esc(S.name)}</h1></div>
+ <dl class="sheet"><dt>Regno</dt><dd><b>${r.n}</b><br><span class="muted small">${r.d}</span></dd>
+ <dt>Formazione</dt><dd><b>${f.n}</b> <span class="muted small">(${f.a})</span><br><span class="muted small">${f.d}</span></dd>
+ <dt>Loggia</dt><dd><b>${l.n}</b><br><span class="muted small">${l.d}</span></dd><dt>Abilità</dt><dd>${myAbil().map(id=>AB[id].n).join(", ")}</dd></dl>
+ <div class="stats">${Object.keys(STATS).map(k=>`<div class="stat"><span class="lbl">${STATS[k]}</span><b>${stat(k)}</b></div>`).join("")}</div>
+ <button class="primary" id="begin">Raggiungi l'avamposto della Loggia</button><button id="backab">Cambia le abilità</button><button id="restart">Ricomincia da capo</button>`;
+ document.getElementById("backab").onclick=()=>{S.step=ORDER.length+1;save();render()};
+ document.getElementById("begin").onclick=()=>{S.created=true;S.falci=30;S.ps=PS_START-AB_COST*(S.abil||[]).length;fillBoard();save();render();syncScore()};
+ document.getElementById("restart").onclick=()=>{S=fresh();save();render()}}
+
+/* ================= GIOCO ================= */
+function renderGame(){
+ const l=pick("loggia"),r=pick("regno");
+ app.innerHTML=`<div class="top">
+  <svg class="lantern${wounded()?' dim':''}" id="lan" viewBox="0 0 40 56" aria-hidden="true"><circle class="glow" cx="20" cy="33" r="19"/><path class="frame" d="M14 6h12M20 2v4M11 12h18l-2 6v24l3 4H10l3-4V18z"/><path class="fl" d="M20 24c4 5 4 9 0 13-4-4-4-8 0-13z"/></svg>
+  <div class="who"><div class="lbl">${r.n} · ${l.n}</div><h2>${esc(S.name)}</h2></div></div>
+ <div class="purse"><div class="moon"><span class="lbl">Borsa</span><b id="pf"></b></div><div class="ala"><span class="lbl">Alathium Grezzo</span><b id="pg"></b></div><div><span class="lbl">Lacrime</span><b id="pl"></b></div></div>
+ <div style="display:flex;flex-direction:column;gap:4px"><div class="row" style="justify-content:space-between"><span class="lbl" id="lv"></span><span class="lbl" id="xpt"></span></div><div class="bar"><i id="xpb"></i></div></div>
+ <div class="tabs" role="tablist">${[["missioni","Missioni"],["avamposto","Avamposto"+(dailyState().ready||prodFull()?" •":"")],["scheda","Scheda"+(S.ps>=AB_COST?" •":"")],["classifica","Classifica"]].map(([k,n])=>`<button role="tab" data-t="${k}" aria-selected="${S.tab===k}">${n}</button>`).join("")}</div>
+ <div id="tab"></div>`;
+ app.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{S.tab=b.dataset.t;save();renderGame()});
+ (({missioni:tabMissioni,avamposto:tabAvamposto,scheda:tabScheda,classifica:tabClassifica})[S.tab]||tabMissioni)();tick()}
+
+function tabMissioni(){const box=document.getElementById("tab");let h="";
+ if(S.report){const A=S.report,L=A.loot;
+  h+=`<div class="card hot"><span class="lbl">Rapporto di missione</span><h3>${esc(A.m.title)}</h3><p class="${A.ok?'good':'bad'}"><b>${A.ok?'Riuscita':'Fallita'}.</b> ${A.text}</p>
+  <ul class="small" style="margin:0;padding-left:18px">${L.falci?`<li>${coins(L.falci)}</li>`:""}${L.gems.map(g=>`<li>${GEMS[g].n} (vale ${coins(GEMS[g].v)})</li>`).join("")}${L.grezzo?`<li>${L.grezzo} Alathium Grezzo</li>`:""}<li>${L.xp} esperienza</li>${L.dbl?`<li>Occasione colta: bottino doppio</li>`:""}${!A.ok?(A.saved?`<li>Le tue arti mediche ti evitano la ferita</li>`:`<li>Sei ferito e devi riposare</li>`):""}</ul>
+  <button id="okr">Chiudi il rapporto</button></div>`}
+ if(S.active){h+=`<div class="card hot"><div class="timer"><div class="ti"><span class="lbl">In missione · ${ZONES.find(z=>z.id===S.active.m.z).n}</span><h3>${esc(S.active.m.title)}</h3></div>
+  <span class="clock" id="mt"></span><button class="play" id="rc" aria-label="Richiama il personaggio"><svg viewBox="0 0 16 16"><rect x="3" y="3" width="10" height="10" rx="2"/></svg></button></div>
+  <div class="bar infect"><i id="mb"></i></div><button class="primary" id="cl" hidden>Leggi il rapporto</button></div>`}
+ else if(wounded()){h+=`<div class="card"><span class="lbl">Ferito</span><p>Il tuo corpo di Eletto guarisce in fretta, ma non subito. Pronto tra <b id="wt"></b>.</p><button id="hl"></button></div>`}
+ const open=zonesOpen(),next=ZONES.find(z=>!open.includes(z));
+ h+=`<div><span class="lbl">Bacheca della Loggia</span></div><div class="board">${S.board.map(m=>{const z=ZONES.find(x=>x.id===m.z),T=TYPES[m.type];
+  return`<div class="mis"><div class="t">${esc(m.title)}</div><div class="meta"><span class="chip ${z.c}">${z.n}</span><span class="chip">${T.n} · ${STATS[T.st]}</span><span class="chip p">${dur(realDur(m))}</span><span class="chip p">${chance(m)}%</span></div>
+  <button class="play" data-m="${m.id}" aria-label="Parti: ${esc(m.title)}" ${S.active||wounded()?'disabled':''}><svg class="pl" viewBox="0 0 16 16"><path d="M4 2.5v11a1 1 0 0 0 1.5.86l9-5.5a1 1 0 0 0 0-1.72l-9-5.5A1 1 0 0 0 4 2.5z"/></svg></button></div>`}).join("")}</div>
+  ${next?`<p class="small muted">${next.n}: serve la Palizzata al livello ${next.req}.</p>`:""}
+  <button id="nb" ${S.falci<10||S.active?'disabled':''}>Chiedi nuovi incarichi (10 Falci)</button>`;
+ box.innerHTML=h;
+ box.querySelectorAll("button[data-m]").forEach(b=>b.onclick=()=>startMission(b.dataset.m));
+ const $=id=>document.getElementById(id);
+ if($("okr"))$("okr").onclick=()=>{S.report=null;save();render()};
+ if($("rc"))$("rc").onclick=recall; if($("cl"))$("cl").onclick=claim;
+ if($("hl"))$("hl").onclick=()=>{const c=healCost();if(S.falci<c)return;S.falci-=c;S.woundUntil=0;save();render()};
+ $("nb").onclick=()=>{if(S.falci<10)return;S.falci-=10;S.board=[];fillBoard();save();render()}}
+
+function dailyCard(){const ds=dailyState(),r=dailyReward();
+ return`<div class="card${ds.ready?" hot":""}"><div class="timer"><div class="ti"><span class="lbl">Una volta al giorno</span><h3>Compenso del Patto della Corona</h3></div>
+  ${ds.ready?"":`<span class="clock" id="dc" style="font-size:1.1rem">${clock(toMidnight())}</span>`}</div>
+  <p class="small muted">Il Patto paga la tua Loggia per il servizio alla Cintura di Norendas. Il compenso cresce con il grado e il livello, e ogni giorno di fila aggiunge il 10% (fino al 7° giorno).</p>
+  <div class="row" style="align-items:center"><span class="chip p">${coinsShort(r.falci)}</span><span class="chip p">${r.lacrime} Lacrime</span><span class="chip p">${r.grezzo} Grezzo</span><span class="chip p">Serie: ${ds.streak} ${ds.streak===1?"giorno":"giorni"}</span></div>
+  ${ds.ready?`<button class="primary" id="dly">Ritira il compenso</button>`:`<p class="small muted">Già ritirato oggi. Il prossimo arriva a mezzanotte.</p>`}</div>`}
+function tabAvamposto(){const box=document.getElementById("tab"),rk=rank();
+ box.innerHTML=`<div class="card"><span class="lbl">Laboratorio · Alathium</span>
+  <p class="small muted">4 Alathium Grezzo diventano Lacrime (per costruire) e 1 Alathium Puro, che va consegnato alla Loggia.</p>
+  <div class="row"><button id="rf" ${!canRefine()||S.grezzo<4?'disabled':''}>${!canRefine()?'Costruisci il laboratorio':'Raffina'}</button>
+  <button class="primary" id="dl" ${!S.puro?'disabled':''}>Consegna ${S.puro} Puro</button></div></div>
+ <div class="card"><span class="lbl">${pick("loggia").n} · il tuo grado</span><span class="big">${rk.r}</span>
+  <p class="small">Alathium Puro consegnato: <b>${S.consegnato}</b>${rk.next?` · prossimo grado (${rk.next[1]}) a ${rk.next[0]}`:""}</p>
+  ${rk.next?`<div class="bar infect"><i style="width:${Math.min(100,S.consegnato/rk.next[0]*100)}%"></i></div>`:""}</div>
+ ${dailyCard()}
+ ${prodCard()}
+ <div><span class="lbl">Il tuo avamposto</span></div>
+ <div class="board">${OUT.map(o=>{const L=lvl(o.id),c=outCost(o),max=L>=5;
+  return`<div class="bld"><div><b>${o.n}</b> <span class="muted small">liv. ${L}/5</span></div><div class="d">${o.d}</div>
+  <button data-o="${o.id}" ${max||S.falci<c.f||S.lacrime<c.lac||(o.req&&lvl(o.req)<1)?'disabled':''}>${max?'Completo':o.req&&lvl(o.req)<1?'Serve il Laboratorio':coinsShort(c.f)+(c.lac?` + ${c.lac} Lacr.`:"")}</button></div>`}).join("")}</div>`;
+ if(document.getElementById("col"))document.getElementById("col").onclick=collect;
+ document.getElementById("rf").onclick=refine;document.getElementById("dl").onclick=deliver;if(document.getElementById("dly"))document.getElementById("dly").onclick=claimDaily;
+ box.querySelectorAll("button[data-o]").forEach(b=>b.onclick=()=>buy(b.dataset.o))}
+
+function tabScheda(){const box=document.getElementById("tab"),[r,f,l]=[pick("regno"),pick("form"),pick("loggia")];
+ box.innerHTML=`<div class="stats">${Object.keys(STATS).map(k=>`<div class="stat"><span class="lbl">${STATS[k]}</span><b>${stat(k)}</b></div>`).join("")}</div>
+ <p class="small muted">Vigore per le cacce, Ingegno per le rovine, Tempra per l'Alathium, Fortuna per i recuperi. La Fortuna aiuta un po' ovunque.</p>
+ <dl class="sheet"><dt>Regno</dt><dd><b>${r.n}</b> <span class="muted small">· ${r.d}</span></dd>
+ <dt>Formazione</dt><dd><b>${f.n}</b> <span class="muted small">· ${f.a}. ${f.d}</span></dd>
+ <dt>Loggia</dt><dd><b>${l.n}</b> <span class="muted small">· ${l.d}</span></dd>
+ <dt>Missioni</dt><dd>${S.missions}</dd></dl>
+ <div class="row" style="justify-content:space-between;align-items:baseline"><span class="lbl">Abilità</span><span class="${S.ps>=AB_COST?'good':'muted'} small"><b>${S.ps}</b> Punti Scheda</span></div>
+ <p class="small muted">Ogni livello ti dà 1 Punto Scheda, come ogni giornata di gioco nel GRV. Con ${AB_COST} PS apprendi una nuova abilità.</p>
+ <div id="abl">${abilList("game")}</div>
+ <div id="rs"><button id="rs1">Crea un nuovo Eletto</button></div>`;
+ bindAbil(box,"game",renderGame);
+ document.getElementById("rs1").onclick=()=>{document.getElementById("rs").innerHTML=`<p>La lanterna di ${esc(S.name)} si spegnerà e perderai tutto. Sicuro?</p><div class="row"><button id="no">Annulla</button><button class="primary" id="yes">Sì, ricomincia</button></div>`;
+  document.getElementById("no").onclick=renderGame;document.getElementById("yes").onclick=()=>{S=fresh();save();render()}}}
+
+const SAMPLE={logge:[{loggia:"ankaa",tot:412,n:38},{loggia:"antares",tot:388,n:31},{loggia:"hamal",tot:297,n:27},{loggia:"ensis",tot:254,n:22}],
+ top:[["Ingrid di Acquaneve","hamal",61,14],["Oreste Malacarne","ankaa",54,13],["Mika la Rossa","antares",47,12],["Brann Lungopasso","ensis",39,11],["Selene Varo","ankaa",33,10]].map(([name,loggia,consegnato,level])=>({name,loggia,consegnato,level}))};
+function tabClassifica(){const box=document.getElementById("tab");
+ if(!online()){drawBoard(box,SAMPLE,true);return}
+ box.innerHTML=`<div class="card"><p class="muted">Carico la classifica…</p></div>`;
+ api("/api/classifica").then(r=>{if(S.tab!=="classifica")return;if(r.status!==200)throw new Error(r.error||"");drawBoard(box,r,false)})
+  .catch(e=>{if(S.tab!=="classifica")return;box.innerHTML=`<div class="card"><h3>Classifica non disponibile</h3><p class="small muted">${esc(e.message||"Il server non risponde. Controlla la connessione e riprova.")}</p><button id="rl">Riprova</button></div>`;document.getElementById("rl").onclick=tabClassifica})}
+function drawBoard(box,d,sample){const LN=id=>(WORLD.loggia.items.find(l=>l.id===id)||{n:id}).n,mine=S.picks.loggia;
+ const lg=WORLD.loggia.items.map(l=>d.logge.find(x=>x.loggia===l.id)||{loggia:l.id,tot:0,n:0}).sort((a,b)=>b.tot-a.tot),max=Math.max(1,...lg.map(x=>x.tot));
+ const meIn=d.top.some(p=>p.me),row=(p,i)=>`<div class="lb${p.me?" me":""}"><span class="pos">${i}</span><div class="lbt"><b>${esc(p.name)}</b><span class="small muted">${LN(p.loggia)} · liv. ${p.level}</span></div><span class="sc">${p.consegnato}</span></div>`;
+ box.innerHTML=`${sample?`<div class="card"><p class="small"><b>Dati di esempio.</b> La classifica vera compare quando il gioco gira dentro Telegram ed è collegato al server.</p></div>`:""}
+ <div class="row" style="justify-content:space-between;align-items:baseline"><span class="lbl">Logge · Alathium Puro consegnato</span>${sample?"":`<button class="golink" id="rl">Aggiorna</button>`}</div>
+ <div class="board">${lg.map((x,i)=>`<div class="lg${x.loggia===mine?" me":""}"><div class="lgh"><span class="pos">${i+1}</span><b>${LN(x.loggia)}</b><span class="sc">${x.tot}</span></div>
+  <div class="bar infect"><i style="width:${x.tot/max*100}%"></i></div><span class="small muted">${x.n} ${x.n===1?"Eletto":"Eletti"}${x.loggia===mine?" · la tua Loggia":""}</span></div>`).join("")}</div>
+ <span class="lbl">Eletti · i primi 20</span>
+ <div class="board">${d.top.length?d.top.map((p,i)=>row(p,i+1)).join(""):`<div class="lb"><span class="muted small">Nessun Eletto ha ancora consegnato Alathium Puro.</span></div>`}
+  ${!sample&&d.me&&!meIn?`<div class="lb gap"><span class="muted small">…</span></div>${row(Object.assign({me:true},d.me),d.me.pos)}`:""}</div>`;
+ if(document.getElementById("rl"))document.getElementById("rl").onclick=tabClassifica}
+function tick(){const $=id=>document.getElementById(id);if(!S.created||!$("pf"))return;const now=Date.now();
+ $("pf").textContent=coinsShort(S.falci);$("pg").textContent=S.grezzo;$("pl").textContent=S.lacrime;
+ $("lv").textContent=`Livello ${S.level}`;$("xpt").textContent=`${S.xp} / ${xpNeed(S.level)} esp`;$("xpb").style.width=(S.xp/xpNeed(S.level)*100)+"%";
+ $("lan").classList.toggle("dim",wounded());
+ if(S.active&&$("mb")){const p=Math.min(1,(now-S.active.start)/(S.active.end-S.active.start));$("mb").style.width=(p*100)+"%";
+  const left=(S.active.end-now)/1000;$("mt").textContent=left>0?clock(left):"Tornato";$("cl").hidden=left>0;$("rc").hidden=left<=0}
+ if($("col")){settleProd();let any=false;PRODS().forEach(o=>{const r=prodRate(o);if(!r||!$("pv-"+o.id))return;const v=S.prod.acc[o.prod]||0;if(v>=1)any=true;$("pv-"+o.id).textContent=prodAmount(o,v);$("pb-"+o.id).style.width=(v/(r*capHours())*100)+"%"});$("col").disabled=!any}
+ if($("dc")){if(dailyState().ready){render();return}$("dc").textContent=clock(toMidnight())}
+ if($("wt")){if(!wounded()){render();return}$("wt").textContent=dur((S.woundUntil-now)/1000);const c=healCost();$("hl").textContent=`Cura subito (${coins(c)})`;$("hl").disabled=S.falci<c}}
+let tt;function toast(t){const e=document.getElementById("toast");e.textContent=t;e.hidden=false;clearTimeout(tt);tt=setTimeout(()=>e.hidden=true,3200)}
+
+function render(){if(S.created){fillBoard();renderGame()}else renderCreate()}
+render();setInterval(tick,500);syncScore();
+document.addEventListener("visibilitychange",()=>{if(document.hidden)save()});
+})();
+</script>
+
+</body>
+</html>
