@@ -343,7 +343,7 @@ const RANKS=[[0,"Recluta"],[3,"Guardiano della Cintura"],[10,"Veterano"],[25,"Cu
 /* ================= STATO ================= */
 const KEY="alarion_save_v2";
 /* Indirizzo del server della classifica (Cloudflare Worker), es. "https://alarion.tuonome.workers.dev". Vuoto = classifica di esempio */
-const API_URL="";
+const API_URL="https://alarion.alessandro-paiano23.workers.dev";
 const online=()=>!!(API_URL&&tg&&tg.initData);
 function api(path,data){return fetch(API_URL.replace(/\/$/,"")+path,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(Object.assign({initData:tg.initData},data||{}))})
  .then(r=>r.json().catch(()=>({})).then(j=>Object.assign({status:r.status},j)))}
